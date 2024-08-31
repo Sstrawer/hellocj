@@ -1,0 +1,2 @@
+# hellocj
+hello cangjie
