@@ -1,0 +1,384 @@
+package icu4cj
+
+/**
+ * Test functions for PatternProps
+ * These functions should be automatically discovered by cjpm test
+ */
+
+// Test syntax character detection
+@Test
+func test_syntax_characters(): Unit {
+    // Test that '!' is a syntax character
+    @Assert(PatternProps.isSyntax(33))
+    
+    // Test that 'a' is NOT a syntax character
+    @Assert(!PatternProps.isSyntax(97))
+}
+
+// Test whitespace character detection
+@Test
+func test_whitespace_characters(): Unit {
+    // Test that space is a whitespace character
+    @Assert(PatternProps.isWhiteSpace(32))
+    
+    // Test that 'a' is NOT a whitespace character
+    @Assert(!PatternProps.isWhiteSpace(97))
+}
+
+// Test string trimming
+@Test
+func test_string_trimming(): Unit {
+    let testString = "  hello world  "
+    let trimmed = PatternProps.trimWhiteSpace(testString)
+    
+    @Assert(trimmed == "hello world")
+}
+
+// Test identifier validation
+@Test
+func test_identifier_validation(): Unit {
+    // Valid identifier
+    @Assert(PatternProps.isIdentifier("hello123"))
+    
+    // Invalid identifier (contains @)
+    @Assert(!PatternProps.isIdentifier("hello@123"))
+}
+
+/**
+ * Test basic character classification functions
+ */
+@Test
+func testBasicFunctions(): Unit {
+    println("\n📝 Basic Character Classification:")
+    println("--------------------------------")
+    
+    // Test various characters
+    let chars = [33, 32, 97, 64, 9, 10]  // !, space, a, @, tab, newline
+    let names = ["!", "space", "a", "@", "tab", "newline"]
+    
+    for (i in 0..chars.size) {
+        let char = chars[i]
+        let name = names[i]
+        let isSyntax = PatternProps.isSyntax(char)
+        let isWS = PatternProps.isWhiteSpace(char)
+        let isSyntaxOrWS = PatternProps.isSyntaxOrWhiteSpace(char)
+        
+        println("'${name}' (${char}): syntax=${isSyntax}, whitespace=${isWS}, syntaxOrWS=${isSyntaxOrWS}")
+    }
+}
+
+/**
+ * Test string processing functions
+ */
+@Test
+func testStringProcessing(): Unit {
+    println("\n🔤 String Processing:")
+    println("---------------------")
+    
+    // Test trimWhiteSpace
+    let testStrings = [
+        "  hello world  ",
+        "no_spaces",
+        "  leading_only",
+        "trailing_only  ",
+        "  both  "
+    ]
+    
+    for (i in 0..testStrings.size) {
+        let testString = testStrings[i]
+        let trimmed = PatternProps.trimWhiteSpace(testString)
+        println("'${testString}' -> '${trimmed}'")
+    }
+    
+    // Test isIdentifier
+    let identifiers = [
+        "validIdentifier123",
+        "invalid@identifier",
+        "another_valid_one",
+        "invalid#identifier",
+        "valid_identifier"
+    ]
+    
+    for (i in 0..identifiers.size) {
+        let identifier = identifiers[i]
+        let isValid = PatternProps.isIdentifier(identifier)
+        if (isValid) {
+            println("'${identifier}': ✅ valid")
+        } else {
+            println("'${identifier}': ❌ invalid")
+        }
+    }
+}
+
+// Test Unicode Pattern_Syntax ranges based on Java comments
+@Test
+func test_unicode_syntax_ranges(): Unit {
+    // Test ASCII syntax characters: [!-/:-@\[-^`{-~]
+    @Assert(PatternProps.isSyntax(33))   // '!'
+    @Assert(PatternProps.isSyntax(47))   // '/'
+    @Assert(PatternProps.isSyntax(58))   // ':'
+    @Assert(PatternProps.isSyntax(64))   // '@'
+    @Assert(PatternProps.isSyntax(91))   // '['
+    @Assert(PatternProps.isSyntax(94))   // '^'
+    @Assert(PatternProps.isSyntax(96))   // '`'
+    @Assert(PatternProps.isSyntax(123))  // '{'
+    @Assert(PatternProps.isSyntax(126))  // '~'
+    
+    // Test non-ASCII syntax characters: \u00A1-\u00A7\u00A9\u00AB\u00AC\u00AE
+    @Assert(PatternProps.isSyntax(0x00A1))  // ¡
+    @Assert(PatternProps.isSyntax(0x00A7))  // §
+    @Assert(PatternProps.isSyntax(0x00A9))  // ©
+    @Assert(PatternProps.isSyntax(0x00AB))  // «
+    @Assert(PatternProps.isSyntax(0x00AC))  // ¬
+    @Assert(PatternProps.isSyntax(0x00AE))  // ®
+    
+    // Test \u00B0\u00B1\u00B6\u00BB\u00BF\u00D7\u00F7
+    @Assert(PatternProps.isSyntax(0x00B0))  // °
+    @Assert(PatternProps.isSyntax(0x00B1))  // ±
+    @Assert(PatternProps.isSyntax(0x00B6))  // ¶
+    @Assert(PatternProps.isSyntax(0x00BB))  // »
+    @Assert(PatternProps.isSyntax(0x00BF))  // ¿
+    @Assert(PatternProps.isSyntax(0x00D7))  // ×
+    @Assert(PatternProps.isSyntax(0x00F7))  // ÷
+}
+
+// Test Unicode Pattern_White_Space ranges based on Java comments
+@Test
+func test_unicode_whitespace_ranges(): Unit {
+    // Test ASCII whitespace: [\u0009-\u000D\ \u0020\u0085]
+    @Assert(PatternProps.isWhiteSpace(9))    // tab
+    @Assert(PatternProps.isWhiteSpace(10))   // newline
+    @Assert(PatternProps.isWhiteSpace(13))   // carriage return
+    @Assert(PatternProps.isWhiteSpace(32))   // space
+    @Assert(PatternProps.isWhiteSpace(0x85)) // next line
+    
+    // Test non-ASCII whitespace: \u200E\u200F\u2028\u2029
+    @Assert(PatternProps.isWhiteSpace(0x200E))  // left-to-right mark
+    @Assert(PatternProps.isWhiteSpace(0x200F))  // right-to-left mark
+    @Assert(PatternProps.isWhiteSpace(0x2028))  // line separator
+    @Assert(PatternProps.isWhiteSpace(0x2029))  // paragraph separator
+}
+
+// Test boundary conditions and edge cases
+@Test
+func test_boundary_conditions(): Unit {
+    // Test negative values
+    @Assert(!PatternProps.isSyntax(-1))
+    @Assert(!PatternProps.isWhiteSpace(-1))
+    @Assert(!PatternProps.isSyntaxOrWhiteSpace(-1))
+    
+    // Test zero
+    @Assert(!PatternProps.isSyntax(0))
+    @Assert(!PatternProps.isWhiteSpace(0))
+    @Assert(!PatternProps.isSyntaxOrWhiteSpace(0))
+    
+    // Test empty string handling
+    @Assert(!PatternProps.isIdentifier(""))
+    
+    // Test single character strings
+    @Assert(PatternProps.isIdentifier("a"))
+    @Assert(!PatternProps.isIdentifier("!"))
+    @Assert(!PatternProps.isIdentifier(" "))
+}
+
+// Test skipWhiteSpace functionality
+@Test
+func test_skip_whitespace(): Unit {
+    let testString = "   hello world"
+    let skipIndex = PatternProps.skipWhiteSpace(testString, 0)
+    @Assert(skipIndex == 3)
+    
+    let testString2 = "hello   world"
+    let skipIndex2 = PatternProps.skipWhiteSpace(testString2, 5)
+    @Assert(skipIndex2 == 8)
+    
+    let testString3 = "no_whitespace"
+    let skipIndex3 = PatternProps.skipWhiteSpace(testString3, 0)
+    @Assert(skipIndex3 == 0)
+}
+
+// Test skipIdentifier functionality
+@Test
+func test_skip_identifier(): Unit {
+    let testString = "hello@world"
+    let skipIndex = PatternProps.skipIdentifier(testString, 0)
+    @Assert(skipIndex == 5)
+    
+    let testString2 = "hello world"
+    let skipIndex2 = PatternProps.skipIdentifier(testString2, 0)
+    @Assert(skipIndex2 == 5)
+    
+    let testString3 = "@world"
+    let skipIndex3 = PatternProps.skipIdentifier(testString3, 0)
+    @Assert(skipIndex3 == 0)
+}
+
+// Test complex string scenarios
+@Test
+func test_complex_string_scenarios(): Unit {
+    // Test mixed content with various Unicode characters
+    let mixedString = "  Hello, @world! How are you?  "
+    let trimmed = PatternProps.trimWhiteSpace(mixedString)
+    @Assert(trimmed == "Hello, @world! How are you?")
+    
+    // Test identifier with underscores and numbers
+    @Assert(PatternProps.isIdentifier("user_name_123"))
+    @Assert(PatternProps.isIdentifier("_private_var"))
+    @Assert(!PatternProps.isIdentifier("user-name"))
+    @Assert(!PatternProps.isIdentifier("user name"))
+}
+
+// Test Unicode ranges mentioned in Java comments
+@Test
+func test_extended_unicode_ranges(): Unit {
+    // Test \u2010-\u2027\u2030-\u203E\u2041-\u2053\u2055-\u205E
+    @Assert(PatternProps.isSyntax(0x2010))  // ‐
+    @Assert(PatternProps.isSyntax(0x2027))  // ‗
+    @Assert(PatternProps.isSyntax(0x2030))  // ‰
+    @Assert(PatternProps.isSyntax(0x203E))  // ‾
+    @Assert(PatternProps.isSyntax(0x2041))  // ⁁
+    @Assert(PatternProps.isSyntax(0x2053))  // ⁓
+    @Assert(PatternProps.isSyntax(0x2055))  // ⁕
+    @Assert(PatternProps.isSyntax(0x205E))  // ⁞
+    
+    // Test \u2190-\u245F\u2500-\u2775\u2794-\u2BFF
+    @Assert(PatternProps.isSyntax(0x2190))  // ←
+    @Assert(PatternProps.isSyntax(0x245F))  // ⑟
+    @Assert(PatternProps.isSyntax(0x2500))  // ─
+    @Assert(PatternProps.isSyntax(0x2775))  // ❵
+    @Assert(PatternProps.isSyntax(0x2794))  // ➔
+    @Assert(PatternProps.isSyntax(0x2BFF))  // ⯿
+    
+    // Test \u2E00-\u2E7F\u3001-\u3003\u3008-\u3020\u3030
+    @Assert(PatternProps.isSyntax(0x2E00))  // ⸀
+    @Assert(PatternProps.isSyntax(0x2E7F))  // ⹿
+    @Assert(PatternProps.isSyntax(0x3001))  // 、
+    @Assert(PatternProps.isSyntax(0x3003))  // 〃
+    @Assert(PatternProps.isSyntax(0x3008))  // 〈
+    @Assert(PatternProps.isSyntax(0x3020))  // 〠
+    @Assert(PatternProps.isSyntax(0x3030))  // 〰
+    
+    // Test \uFD3E\uFD3F\uFE45\uFE46
+    @Assert(PatternProps.isSyntax(0xFD3E))  // ﴾
+    @Assert(PatternProps.isSyntax(0xFD3F))  // ﴿
+    @Assert(PatternProps.isSyntax(0xFE45))  // ﹅
+    @Assert(PatternProps.isSyntax(0xFE46))  // ﹆
+}
+
+// Test that regular letters and numbers are NOT syntax characters
+@Test
+func test_non_syntax_characters(): Unit {
+    // Test lowercase letters
+    for (i in 97..123) {  // a-z
+        @Assert(!PatternProps.isSyntax(i))
+    }
+    
+    // Test uppercase letters
+    for (i in 65..91) {   // A-Z
+        @Assert(!PatternProps.isSyntax(i))
+    }
+    
+    // Test digits
+    for (i in 48..58) {   // 0-9
+        @Assert(!PatternProps.isSyntax(i))
+    }
+}
+
+// Test that regular letters and numbers are NOT whitespace
+@Test
+func test_non_whitespace_characters(): Unit {
+    // Test lowercase letters
+    for (i in 97..123) {  // a-z
+        @Assert(!PatternProps.isWhiteSpace(i))
+    }
+    
+    // Test uppercase letters
+    for (i in 65..91) {   // A-Z
+        @Assert(!PatternProps.isWhiteSpace(i))
+    }
+    
+    // Test digits
+    for (i in 48..58) {   // 0-9
+        @Assert(!PatternProps.isWhiteSpace(i))
+    }
+}
+
+// Test isSyntaxOrWhiteSpace comprehensive coverage
+@Test
+func test_syntax_or_whitespace_comprehensive(): Unit {
+    // Test that syntax characters return true
+    @Assert(PatternProps.isSyntaxOrWhiteSpace(33))   // '!'
+    @Assert(PatternProps.isSyntaxOrWhiteSpace(64))   // '@'
+    
+    // Test that whitespace characters return true
+    @Assert(PatternProps.isSyntaxOrWhiteSpace(32))   // space
+    @Assert(PatternProps.isSyntaxOrWhiteSpace(9))    // tab
+    
+    // Test that regular characters return false
+    @Assert(!PatternProps.isSyntaxOrWhiteSpace(97))  // 'a'
+    @Assert(!PatternProps.isSyntaxOrWhiteSpace(65))  // 'A'
+    @Assert(!PatternProps.isSyntaxOrWhiteSpace(48))  // '0'
+}
+
+// Test trimWhiteSpace edge cases
+@Test
+func test_trim_whitespace_edge_cases(): Unit {
+    // Test empty string
+    @Assert(PatternProps.trimWhiteSpace("") == "")
+    
+    // Test string with only whitespace
+    @Assert(PatternProps.trimWhiteSpace("   ") == "")
+    @Assert(PatternProps.trimWhiteSpace("\t\n\r ") == "")
+    
+    // Test string with no leading/trailing whitespace
+    @Assert(PatternProps.trimWhiteSpace("hello") == "hello")
+    
+    // Test string with mixed whitespace types
+    @Assert(PatternProps.trimWhiteSpace("\t hello \n") == "hello")
+}
+
+// Test identifier validation edge cases
+@Test
+func test_identifier_validation_edge_cases(): Unit {
+    // Test single character identifiers
+    @Assert(PatternProps.isIdentifier("a"))
+    @Assert(PatternProps.isIdentifier("1"))
+    @Assert(PatternProps.isIdentifier("_"))
+    
+    // Test identifiers with various valid characters
+    @Assert(PatternProps.isIdentifier("user123"))
+    @Assert(PatternProps.isIdentifier("_private"))
+    @Assert(PatternProps.isIdentifier("camelCase"))
+    @Assert(PatternProps.isIdentifier("snake_case"))
+    
+    // Test invalid identifiers
+    @Assert(!PatternProps.isIdentifier("user@name"))
+    @Assert(!PatternProps.isIdentifier("user name"))
+    @Assert(!PatternProps.isIdentifier("user-name"))
+    @Assert(!PatternProps.isIdentifier("user+name"))
+    @Assert(!PatternProps.isIdentifier("user!name"))
+    @Assert(!PatternProps.isIdentifier("user#name"))
+    @Assert(!PatternProps.isIdentifier("user$name"))
+    @Assert(!PatternProps.isIdentifier("user%name"))
+    @Assert(!PatternProps.isIdentifier("user^name"))
+    @Assert(!PatternProps.isIdentifier("user&name"))
+    @Assert(!PatternProps.isIdentifier("user*name"))
+    @Assert(!PatternProps.isIdentifier("user(name"))
+    @Assert(!PatternProps.isIdentifier("user)name"))
+    @Assert(!PatternProps.isIdentifier("user=name"))
+    @Assert(!PatternProps.isIdentifier("user[name"))
+    @Assert(!PatternProps.isIdentifier("user]name"))
+    @Assert(!PatternProps.isIdentifier("user{name"))
+    @Assert(!PatternProps.isIdentifier("user}name"))
+    @Assert(!PatternProps.isIdentifier("user|name"))
+    @Assert(!PatternProps.isIdentifier("user\\name"))
+    @Assert(!PatternProps.isIdentifier("user/name"))
+    @Assert(!PatternProps.isIdentifier("user:name"))
+    @Assert(!PatternProps.isIdentifier("user;name"))
+    @Assert(!PatternProps.isIdentifier("user<name"))
+    @Assert(!PatternProps.isIdentifier("user>name"))
+    @Assert(!PatternProps.isIdentifier("user,name"))
+    @Assert(!PatternProps.isIdentifier("user.name"))
+    @Assert(!PatternProps.isIdentifier("user?name"))
+    @Assert(!PatternProps.isIdentifier("user~name"))
+}

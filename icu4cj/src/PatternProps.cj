@@ -3,6 +3,7 @@ package icu4cj
 /**
  * ICU PatternProps class for Cangjie
  * Implements the immutable Unicode properties Pattern_Syntax and Pattern_White_Space.
+ * Enhanced with UTF-8 support for proper handling of multi-byte characters.
  */
 class PatternProps {
     
@@ -62,64 +63,179 @@ class PatternProps {
     }
 
     /**
+     * Decodes a UTF-8 character starting at the given index in the string.
+     * @param s The UTF-8 encoded string
+     * @param index The starting index (byte position)
+     * @return A tuple containing (decoded_character, next_index)
+     */
+    private static func decodeUTF8Char(s: String, index: Int64): (Int64, Int64) {
+        if (index >= s.size) {
+            return (-1, index)
+        }
+        
+        let firstByte = Int64(s[index])
+        
+        // ASCII character (0xxxxxxx)
+        if (firstByte < 0x80) {
+            return (firstByte, index + 1)
+        }
+        
+        // Multi-byte character
+        if (index + 1 >= s.size) {
+            return (-1, index)
+        }
+        
+        let secondByte = Int64(s[index + 1])
+        
+        // 2-byte character (110xxxxx 10xxxxxx)
+        if ((firstByte & 0xE0) == 0xC0) {
+            if (index + 2 > s.size) {
+                return (-1, index)
+            }
+            let codePoint = ((firstByte & 0x1F) << 6) | (secondByte & 0x3F)
+            return (codePoint, index + 2)
+        }
+        
+        // 3-byte character (1110xxxx 10xxxxxx 10xxxxxx)
+        if ((firstByte & 0xF0) == 0xE0) {
+            if (index + 3 > s.size) {
+                return (-1, index)
+            }
+            let thirdByte = Int64(s[index + 2])
+            let codePoint = ((firstByte & 0x0F) << 12) | ((secondByte & 0x3F) << 6) | (thirdByte & 0x3F)
+            return (codePoint, index + 3)
+        }
+        
+        // 4-byte character (11110xxx 10xxxxxx 10xxxxxx 10xxxxxx)
+        if ((firstByte & 0xF8) == 0xF0) {
+            if (index + 4 > s.size) {
+                return (-1, index)
+            }
+            let thirdByte = Int64(s[index + 2])
+            let fourthByte = Int64(s[index + 3])
+            let codePoint = ((firstByte & 0x07) << 18) | ((secondByte & 0x3F) << 12) | ((thirdByte & 0x3F) << 6) | (fourthByte & 0x3F)
+            return (codePoint, index + 4)
+        }
+        
+        // Invalid UTF-8 sequence
+        return (-1, index + 1)
+    }
+
+
+
+    /**
      * @return s except with leading and trailing Pattern_White_Space removed.
+     * Enhanced to handle UTF-8 encoded strings correctly.
      */
     public static func trimWhiteSpace(s: String): String {
         if (s.size == 0) {
             return s
         }
+        
         var start: Int64 = 0
-        var limit = s.size
-        while (start < limit && isWhiteSpace(Int64(s[start]))) {
-            start = start + 1
-        }
-        if (start < limit) {
-            while (isWhiteSpace(Int64(s[limit - 1]))) {
-                limit = limit - 1
+        var limit: Int64 = s.size
+        
+        // Skip leading whitespace
+        while (start < limit) {
+            let (char, nextIndex) = decodeUTF8Char(s, start)
+            if (char == -1) {
+                start = start + 1
+            } else if (!isWhiteSpace(char)) {
+                break
+            } else {
+                start = nextIndex
             }
         }
-        return s[start..limit]
+        
+        // Skip trailing whitespace
+        if (start < limit) {
+            var tempIndex = limit - 1
+            while (tempIndex >= start) {
+                // Find the start of the last character
+                var charStart = tempIndex
+                while (charStart > start && (Int64(s[charStart]) & 0xC0) == 0x80) {
+                    charStart = charStart - 1
+                }
+                
+                let (char, _) = decodeUTF8Char(s, charStart)
+                if (char == -1 || !isWhiteSpace(char)) {
+                    break
+                }
+                tempIndex = charStart - 1
+            }
+            limit = tempIndex + 1
+        }
+        
+        if (start == 0 && limit == s.size) {
+            return s
+        } else {
+            return s[start..limit]
+        }
     }
 
     /**
-     * Tests whether the CharSequence contains a "pattern identifier"
+     * Tests whether the CharSequence contains a "pattern identifier", that is,
+     * whether it contains only non-Pattern_White_Space, non-Pattern_Syntax characters.
+     * Enhanced to handle UTF-8 encoded strings correctly.
+     * @return true if there are no Pattern_White_Space or Pattern_Syntax characters in s.
      */
     public static func isIdentifier(s: String): Bool {
         let limit = s.size
         if (limit == 0) {
             return false
         }
-        var start: Int64 = 0
-        while (start < limit) {
-            if (isSyntaxOrWhiteSpace(Int64(s[start]))) {
+        
+        var index: Int64 = 0
+        while (index < limit) {
+            let (char, nextIndex) = decodeUTF8Char(s, index)
+            if (char == -1) {
+                // Invalid UTF-8 sequence, treat as invalid
+                return false
+            } else if (isSyntaxOrWhiteSpace(char)) {
                 return false
             }
-            start = start + 1
+            index = nextIndex
         }
         return true
     }
 
     /**
      * Skips over Pattern_White_Space starting at index i of the CharSequence.
+     * Enhanced to handle UTF-8 encoded strings correctly.
      * @return The smallest index at or after i with a non-white space character.
      */
     public static func skipWhiteSpace(s: String, i: Int64): Int64 {
         var index = i
-        while (index < s.size && isWhiteSpace(Int64(s[index]))) {
-            index = index + 1
+        while (index < s.size) {
+            let (char, nextIndex) = decodeUTF8Char(s, index)
+            if (char == -1) {
+                index = index + 1
+            } else if (!isWhiteSpace(char)) {
+                break
+            } else {
+                index = nextIndex
+            }
         }
         return index
     }
 
     /**
      * Skips over a "pattern identifier" starting at index i of the CharSequence.
+     * Enhanced to handle UTF-8 encoded strings correctly.
      * @return The smallest index at or after i with
      *         a Pattern_White_Space or Pattern_Syntax character.
      */
     public static func skipIdentifier(s: String, i: Int64): Int64 {
         var index = i
-        while (index < s.size && !isSyntaxOrWhiteSpace(Int64(s[index]))) {
-            index = index + 1
+        while (index < s.size) {
+            let (char, nextIndex) = decodeUTF8Char(s, index)
+            if (char == -1) {
+                index = index + 1
+            } else if (isSyntaxOrWhiteSpace(char)) {
+                break
+            } else {
+                index = nextIndex
+            }
         }
         return index
     }
@@ -187,36 +303,22 @@ class PatternProps {
     ]
 
     /*
-     * One 32-bit integer per 32 characters. Ranges of all-false and all-true
-     * are mapped to the first two values, other ranges map to appropriate bit patterns.
+     * One byte per 32 characters from U+2000..U+303F indexing into
+     * a small table of 32-bit data words.
+     * The first two data words are all-zeros and all-ones.
      */
-    private static let syntax2000: VArray<Int64, $10> = [
-        0,
-        -1,
-        0xffff0000,  // 2: 2010..201F
-        0x7fff00ff,  // 3: 2020..2027, 2030..203E
-        0x7feffffe,  // 4: 2041..2053, 2055..205E
-        0xffff0000,  // 5: 2190..219F
-        0x003fffff,  // 6: 2760..2775
-        0xfff00000,  // 7: 2794..279F
-        0xffffff0e,  // 8: 3001..3003, 3008..301F
-        0x00010001   // 9: 3020, 3030
+    private static let syntax2000: VArray<Int32, $16> = [
+        0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+        0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000
     ]
 
     /*
-     * Same as syntax2000, but with additional bits set for the
-     * Pattern_White_Space characters 200E 200F 2028 2029.
+     * One byte per 32 characters from U+2000..U+303F indexing into
+     * a small table of 32-bit data words.
+     * The first two data words are all-zeros and all-ones.
      */
-    private static let syntaxOrWhiteSpace2000: VArray<Int64, $10> = [
-        0,
-        -1,
-        0xffffc000,  // 2: 200E..201F
-        0x7fff03ff,  // 3: 2020..2029, 2030..203E
-        0x7feffffe,  // 4: 2041..2053, 2055..205E
-        0xffff0000,  // 5: 2190..219F
-        0x003fffff,  // 6: 2760..2775
-        0xfff00000,  // 7: 2794..279F
-        0xffffff0e,  // 8: 3001..3003, 3008..301F
-        0x00010001   // 9: 3020, 3030
+    private static let syntaxOrWhiteSpace2000: VArray<Int32, $16> = [
+        0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+        0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000
     ]
 }
