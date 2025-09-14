@@ -1,0 +1,19 @@
+[package]
+  cjc-version = "1.0.0"
+  name = "icu"
+  description = "nothing here"
+  version = "1.0.0"
+  target-dir = ""
+  src-dir = ""
+  output-type = "executable"
+  compile-option = "--debug-macro"
+  override-compile-option = ""
+  link-option = ""
+  package-configuration = {}
+
+[dependencies]
+
+[profile.build]
+  #lto = "full"  # 是否开启 `LTO` （Link Time Optimization 链接时优化）优化编译模式，仅 `Linux` 平台支持该功能。
+  #performance_analysis = true # 开启编译性能分析功能
+  incremental = true # 是否默认开启增量编译
